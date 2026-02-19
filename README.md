@@ -2,14 +2,14 @@
 
 A UIKit component that animates text changes character-by-character using spring physics. Each character is individually tracked and animated, creating fluid morphing and replacement effects.
 
-https://github.com/user-attachments/assets/19af2b61-99ec-4393-89ae-2d29cb845f66
+https://github.com/user-attachments/assets/f834eef6-60df-4315-bdfd-6abadd3e52c9
 
 ## Installation
 
 Add the package via Swift Package Manager:
 
 ```
-https://github.com/user/AnimatedLabel.git
+https://github.com/ioscraft/AnimatedLabel.git
 ```
 
 Or add it as a local package dependency in Xcode.
