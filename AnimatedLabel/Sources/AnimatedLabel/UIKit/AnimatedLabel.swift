@@ -39,7 +39,7 @@ public final class AnimatedLabel: UIView {
   private var characterViews: [String: CharacterView] = [:]
   private let animator = Animator()
   private var sizeAnimator: UIViewPropertyAnimator?
-  private var fadeAnimators: [UIViewPropertyAnimator] = []
+  private var enterAnimators: [UIViewPropertyAnimator] = []
 
   private lazy var widthConstraint: NSLayoutConstraint = {
     let c = widthAnchor.constraint(equalToConstant: 0)
@@ -158,7 +158,6 @@ public final class AnimatedLabel: UIView {
     )
 
     var persistentMoves: [(view: CharacterView, target: CGRect)] = []
-    var enteringViews: [CharacterView] = []
     var enterIndex = 0
 
     for pair in diff.persistent {
@@ -180,8 +179,7 @@ public final class AnimatedLabel: UIView {
 
         let newView = makeCharacterView(id: id, character: pair.new.character)
         setupEntering(newView, frame: newFrame, direction: direction)
-        addFadeAnimator(for: newView, staggerIndex: enterIndex)
-        enteringViews.append(newView)
+        addEnteringAnimators(for: newView, staggerIndex: enterIndex)
         enterIndex += 1
       }
     }
@@ -198,8 +196,7 @@ public final class AnimatedLabel: UIView {
       guard let newFrame = newFrameLookup[block.id] else { continue }
       let view = makeCharacterView(id: block.id, character: block.character)
       setupEntering(view, frame: newFrame, direction: direction)
-      addFadeAnimator(for: view, staggerIndex: enterIndex)
-      enteringViews.append(view)
+      addEnteringAnimators(for: view, staggerIndex: enterIndex)
       enterIndex += 1
     }
 
@@ -209,17 +206,10 @@ public final class AnimatedLabel: UIView {
       for (view, target) in persistentMoves {
         view.contextualFrame = target
       }
-      for view in enteringViews {
-        view.transform = .identity
-      }
     }
     sa.addCompletion { _ in
       for (view, target) in persistentMoves {
         view.contextualFrame = target
-      }
-      for view in enteringViews {
-        view.transform = .identity
-        view.alpha = 1
       }
     }
     sizeAnimator = sa
@@ -247,10 +237,10 @@ public final class AnimatedLabel: UIView {
   private func cancelRunningAnimations() {
     animator.cancelAll()
     sizeAnimator?.stopAnimation(true)
-    for fa in fadeAnimators where fa.state == .active {
-      fa.stopAnimation(true)
+    for a in enterAnimators where a.state == .active {
+      a.stopAnimation(true)
     }
-    fadeAnimators.removeAll()
+    enterAnimators.removeAll()
 
     for (_, view) in characterViews {
       view.transform = .identity
@@ -289,14 +279,28 @@ public final class AnimatedLabel: UIView {
     view.alpha = 0
   }
 
-  private func addFadeAnimator(for view: CharacterView, staggerIndex: Int) {
+  private func addEnteringAnimators(for view: CharacterView, staggerIndex: Int) {
     let delay = TimeInterval(staggerIndex) * style.stagger
-    let fa = UIViewPropertyAnimator(duration: style.fadeDuration, curve: .easeOut)
-    fa.addAnimations {
+
+    let spring = UIViewPropertyAnimator(duration: 0, timingParameters: style.springParameters)
+    spring.addAnimations {
+      view.transform = .identity
+    }
+    spring.addCompletion { _ in
+      view.transform = .identity
+    }
+    enterAnimators.append(spring)
+    spring.startAnimation(afterDelay: delay)
+
+    let fade = UIViewPropertyAnimator(duration: style.fadeDuration, curve: .easeOut)
+    fade.addAnimations {
       view.alpha = 1
     }
-    fadeAnimators.append(fa)
-    fa.startAnimation(afterDelay: delay)
+    fade.addCompletion { _ in
+      view.alpha = 1
+    }
+    enterAnimators.append(fade)
+    fade.startAnimation(afterDelay: delay)
   }
 
   private static func detectDirection(old: String, new: String) -> CGFloat {
