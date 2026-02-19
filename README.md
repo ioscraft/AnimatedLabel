@@ -55,7 +55,7 @@ label.mode = .replace
 
 | Mode | Behavior |
 |------|----------|
-| `.morph` | Characters are matched by identity. Shared characters slide to their new position. |
+| `.morph` | Words are matched first, then characters within gaps. Shared elements slide to their new position. |
 | `.replace` | Characters are matched by position. Every position runs a full exit/enter transition. |
 
 ### Transition
@@ -103,6 +103,14 @@ label.style = AnimationStyle(
 | `damping` | Spring damping | `30` |
 | `stagger` | Delay between each character's fade-in | `0.035` |
 | `fadeDuration` | Duration of enter/exit fades | `0.15` |
+
+### Reduce Motion
+
+```swift
+label.reduceMotion = .system        // follows UIAccessibility setting (default)
+label.reduceMotion = .alwaysAnimate // always animate
+label.reduceMotion = .neverAnimate  // always instant swap
+```
 
 ### Other Properties
 
