@@ -2,6 +2,12 @@ import UIKit
 
 public final class AnimatedLabel: UIView {
 
+  public enum ReduceMotionBehavior {
+    case system
+    case alwaysAnimate
+    case neverAnimate
+  }
+
   public var font: UIFont = .systemFont(ofSize: 17) {
     didSet {
       updateExistingViews()
@@ -34,6 +40,8 @@ public final class AnimatedLabel: UIView {
 
   public var drift: CGFloat = 10
 
+  public var reduceMotion: ReduceMotionBehavior = .system
+
   private var currentText: String = ""
   private var currentBlocks: [CharacterBlock] = []
   private var characterViews: [String: CharacterView] = [:]
@@ -63,16 +71,37 @@ public final class AnimatedLabel: UIView {
   @available(*, unavailable)
   public required init?(coder: NSCoder) { fatalError() }
 
+  private var shouldReduceMotion: Bool {
+    switch reduceMotion {
+    case .system: return UIAccessibility.isReduceMotionEnabled
+    case .alwaysAnimate: return false
+    case .neverAnimate: return true
+    }
+  }
+
   public func setText(_ text: String, alongside: (() -> Void)? = nil) {
     guard text != currentText else { return }
 
     let oldText = currentText
     let oldBlocks = currentBlocks
-    let newBlocks =
-      mode == .replace
-      ? Segmenter.segmentByPosition(text)
-      : Segmenter.segment(text)
     let isFirstText = currentText.isEmpty && oldBlocks.isEmpty
+
+    let newBlocks: [CharacterBlock]
+    let diff: TextDiffResult
+
+    if mode == .replace {
+      newBlocks = Segmenter.segmentByPosition(text)
+      diff = TextDiff.diff(old: oldBlocks, new: newBlocks)
+    } else {
+      if isFirstText {
+        newBlocks = Segmenter.segment(text)
+        diff = TextDiff.diff(old: oldBlocks, new: newBlocks)
+      } else {
+        let result = TextDiff.morphDiff(oldBlocks: oldBlocks, newText: text)
+        newBlocks = result.newBlocks
+        diff = result.result
+      }
+    }
 
     currentText = text
     currentBlocks = newBlocks
@@ -88,6 +117,13 @@ public final class AnimatedLabel: UIView {
       heightConstraint.constant = newSize.height
       invalidateIntrinsicContentSize()
       placeCharacters(frames: newFrames)
+    } else if shouldReduceMotion {
+      performReducedMotionSwap(
+        newBlocks: newBlocks,
+        newFrames: newFrames,
+        newSize: newSize,
+        alongside: alongside
+      )
     } else {
       let direction: CGFloat =
         transition == .rolling
@@ -95,7 +131,7 @@ public final class AnimatedLabel: UIView {
         : 1
       performTransition(
         oldBlocks: oldBlocks,
-        newBlocks: newBlocks,
+        diff: diff,
         newFrames: newFrames,
         newSize: newSize,
         direction: direction,
@@ -120,9 +156,30 @@ public final class AnimatedLabel: UIView {
     }
   }
 
+  private func performReducedMotionSwap(
+    newBlocks: [CharacterBlock],
+    newFrames: [LayoutEngine.CharacterFrame],
+    newSize: CGSize,
+    alongside: (() -> Void)?
+  ) {
+    cancelRunningAnimations()
+
+    for (_, view) in characterViews {
+      view.removeFromSuperview()
+    }
+    characterViews.removeAll()
+
+    widthConstraint.constant = newSize.width
+    heightConstraint.constant = newSize.height
+    invalidateIntrinsicContentSize()
+
+    placeCharacters(frames: newFrames)
+    alongside?()
+  }
+
   private func performTransition(
     oldBlocks: [CharacterBlock],
-    newBlocks: [CharacterBlock],
+    diff: TextDiffResult,
     newFrames: [LayoutEngine.CharacterFrame],
     newSize: CGSize,
     direction: CGFloat,
@@ -140,7 +197,6 @@ public final class AnimatedLabel: UIView {
       oldFrames[mf.id] = mf.frame
     }
 
-    // When bounds change, center stays fixed so origin shifts
     let shiftX = (bounds.width - newSize.width) / 2
     let shiftY = (bounds.height - newSize.height) / 2
 
@@ -152,12 +208,22 @@ public final class AnimatedLabel: UIView {
     heightConstraint.constant = newSize.height
     invalidateIntrinsicContentSize()
 
-    let diff = TextDiff.diff(old: oldBlocks, new: newBlocks)
     let newFrameLookup = Dictionary(
       uniqueKeysWithValues: newFrames.map { ($0.id, $0.frame) }
     )
 
+    let effectiveDrift: CGFloat
+    let effectiveStagger: TimeInterval
+    if mode == .morph {
+      effectiveDrift = drift * diff.changeRatio
+      effectiveStagger = style.stagger * max(diff.changeRatio, 0.3)
+    } else {
+      effectiveDrift = drift
+      effectiveStagger = style.stagger
+    }
+
     var persistentMoves: [(view: CharacterView, target: CGRect)] = []
+    var persistentDeltas: [Int: CGPoint] = [:]
     var enterIndex = 0
 
     for pair in diff.persistent {
@@ -167,19 +233,27 @@ public final class AnimatedLabel: UIView {
       else { continue }
       guard let view = characterViews[id] else { continue }
 
+      let shiftedOld = oldFrame.offsetBy(dx: -shiftX, dy: -shiftY)
+
       if mode == .morph {
         view.character = pair.new.character
-        view.contextualFrame = oldFrame.offsetBy(dx: -shiftX, dy: -shiftY)
+        view.contextualFrame = shiftedOld
         view.alpha = 1
         persistentMoves.append((view: view, target: newFrame))
+
+        let delta = CGPoint(
+          x: newFrame.origin.x - shiftedOld.origin.x,
+          y: newFrame.origin.y - shiftedOld.origin.y
+        )
+        persistentDeltas[pair.old.index] = delta
       } else {
         characterViews.removeValue(forKey: id)
-        view.contextualFrame = oldFrame.offsetBy(dx: -shiftX, dy: -shiftY)
-        animateExit(view, direction: direction)
+        view.contextualFrame = shiftedOld
+        animateExit(view, direction: direction, drift: effectiveDrift, anchorDelta: .zero)
 
         let newView = makeCharacterView(id: id, character: pair.new.character)
-        setupEntering(newView, frame: newFrame, direction: direction)
-        addEnteringAnimators(for: newView, staggerIndex: enterIndex)
+        setupEntering(newView, frame: newFrame, direction: direction, drift: effectiveDrift)
+        addEnteringAnimators(for: newView, staggerIndex: enterIndex, stagger: effectiveStagger)
         enterIndex += 1
       }
     }
@@ -189,14 +263,30 @@ public final class AnimatedLabel: UIView {
       if let oldFrame = oldFrames[block.id] {
         view.contextualFrame = oldFrame.offsetBy(dx: -shiftX, dy: -shiftY)
       }
-      animateExit(view, direction: direction)
+      let anchorDelta = findAnchorDelta(
+        exitingIndex: block.index,
+        persistentDeltas: persistentDeltas
+      )
+      animateExit(view, direction: direction, drift: effectiveDrift, anchorDelta: anchorDelta)
     }
+
+    var enteringMoves: [(view: CharacterView, target: CGRect)] = []
 
     for block in diff.entering {
       guard let newFrame = newFrameLookup[block.id] else { continue }
       let view = makeCharacterView(id: block.id, character: block.character)
-      setupEntering(view, frame: newFrame, direction: direction)
-      addEnteringAnimators(for: view, staggerIndex: enterIndex)
+      let anchorDelta = findAnchorDelta(
+        exitingIndex: block.index,
+        persistentDeltas: persistentDeltas
+      )
+      let startFrame = anchorDelta == .zero
+        ? newFrame
+        : newFrame.offsetBy(dx: -anchorDelta.x, dy: -anchorDelta.y)
+      setupEntering(view, frame: startFrame, direction: direction, drift: effectiveDrift)
+      if anchorDelta != .zero {
+        enteringMoves.append((view: view, target: newFrame))
+      }
+      addEnteringAnimators(for: view, staggerIndex: enterIndex, stagger: effectiveStagger)
       enterIndex += 1
     }
 
@@ -206,14 +296,37 @@ public final class AnimatedLabel: UIView {
       for (view, target) in persistentMoves {
         view.contextualFrame = target
       }
+      for (view, target) in enteringMoves {
+        view.contextualFrame = target
+      }
     }
     sa.addCompletion { _ in
       for (view, target) in persistentMoves {
         view.contextualFrame = target
       }
+      for (view, target) in enteringMoves {
+        view.contextualFrame = target
+      }
     }
     sizeAnimator = sa
     sa.startAnimation()
+  }
+
+  private func findAnchorDelta(
+    exitingIndex: Int,
+    persistentDeltas: [Int: CGPoint]
+  ) -> CGPoint {
+    guard !persistentDeltas.isEmpty else { return .zero }
+    var bestIndex = persistentDeltas.keys.first!
+    var bestDistance = abs(exitingIndex - bestIndex)
+    for idx in persistentDeltas.keys {
+      let dist = abs(exitingIndex - idx)
+      if dist < bestDistance {
+        bestDistance = dist
+        bestIndex = idx
+      }
+    }
+    return persistentDeltas[bestIndex]!
   }
 
   private func captureVisualFrames() -> [String: CGRect] {
@@ -248,12 +361,18 @@ public final class AnimatedLabel: UIView {
     }
   }
 
-  private func animateExit(_ view: CharacterView, direction: CGFloat) {
+  private func animateExit(
+    _ view: CharacterView,
+    direction: CGFloat,
+    drift: CGFloat,
+    anchorDelta: CGPoint
+  ) {
     animator.animateExiting(
       view: view,
       transition: transition,
       direction: direction,
       drift: drift,
+      anchorDelta: anchorDelta,
       style: style
     ) {
       view.removeFromSuperview()
@@ -263,7 +382,8 @@ public final class AnimatedLabel: UIView {
   private func setupEntering(
     _ view: CharacterView,
     frame: CGRect,
-    direction: CGFloat
+    direction: CGFloat,
+    drift: CGFloat
   ) {
     view.contextualFrame = frame
     view.layoutIfNeeded()
@@ -279,8 +399,12 @@ public final class AnimatedLabel: UIView {
     view.alpha = 0
   }
 
-  private func addEnteringAnimators(for view: CharacterView, staggerIndex: Int) {
-    let delay = TimeInterval(staggerIndex) * style.stagger
+  private func addEnteringAnimators(
+    for view: CharacterView,
+    staggerIndex: Int,
+    stagger: TimeInterval
+  ) {
+    let delay = TimeInterval(staggerIndex) * stagger
 
     let spring = UIViewPropertyAnimator(duration: 0, timingParameters: style.springParameters)
     spring.addAnimations {

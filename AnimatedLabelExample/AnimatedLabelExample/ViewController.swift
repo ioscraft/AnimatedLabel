@@ -58,7 +58,7 @@ final class ViewController: UIViewController {
     self?.styleChanged(index)
   }
 
-  private let words = ["Creative", "Craft", "Create", "Code"]
+  private let words = ["Send Action", "Action Sent", "Backing up", "Backed up", "Creative", "Craft", "Create", "Code"]
   private let styles: [AnimationStyle] = [.smooth, .snappy, .bouncy]
   private var currentWordIndex = 0
   private var currentMode: AnimationMode = .morph

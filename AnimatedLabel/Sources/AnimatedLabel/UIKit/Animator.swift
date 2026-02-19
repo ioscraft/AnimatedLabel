@@ -22,13 +22,14 @@ final class Animator {
     transition: TransitionType,
     direction: CGFloat,
     drift: CGFloat,
+    anchorDelta: CGPoint,
     style: AnimationStyle,
     completion: @escaping () -> Void
   ) {
     exitingViews.append(view)
 
-    let animator = UIViewPropertyAnimator(duration: style.fadeDuration, curve: .easeIn)
-    animator.addAnimations {
+    let exitAnimator = UIViewPropertyAnimator(duration: style.fadeDuration, curve: .easeIn)
+    exitAnimator.addAnimations {
       switch transition {
       case .scale:
         view.transform = CGAffineTransform(scaleX: 0.82, y: 0.82)
@@ -40,12 +41,27 @@ final class Animator {
       }
       view.alpha = 0
     }
-    animator.addCompletion { [weak self] _ in
+    exitAnimator.addCompletion { [weak self] _ in
       self?.exitingViews.removeAll { $0 === view }
       completion()
     }
-    track(animator)
-    animator.startAnimation()
+    track(exitAnimator)
+    exitAnimator.startAnimation()
+
+    if anchorDelta != .zero {
+      let driftAnimator = UIViewPropertyAnimator(
+        duration: 0,
+        timingParameters: style.springParameters
+      )
+      var frame = view.contextualFrame
+      frame.origin.x += anchorDelta.x
+      frame.origin.y += anchorDelta.y
+      driftAnimator.addAnimations {
+        view.contextualFrame = frame
+      }
+      track(driftAnimator)
+      driftAnimator.startAnimation()
+    }
   }
 
   private func track(_ animator: UIViewPropertyAnimator) {
