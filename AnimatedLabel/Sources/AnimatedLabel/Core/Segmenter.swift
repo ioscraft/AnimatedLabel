@@ -1,5 +1,3 @@
-import Foundation
-
 enum Segmenter {
 
   static func segment(_ text: String) -> [CharacterBlock] {
@@ -19,9 +17,7 @@ enum Segmenter {
         seen.insert(key)
       }
 
-      blocks.append(
-        CharacterBlock(id: id, character: character, index: index)
-      )
+      blocks.append(CharacterBlock(id: id, character: character, index: index))
     }
 
     return blocks

@@ -1,5 +1,3 @@
-import Foundation
-
 struct TextDiffResult {
   let persistent: [(old: CharacterBlock, new: CharacterBlock)]
   let entering: [CharacterBlock]
@@ -8,9 +6,7 @@ struct TextDiffResult {
 
 enum TextDiff {
 
-  static func diff(old: [CharacterBlock], new: [CharacterBlock])
-    -> TextDiffResult
-  {
+  static func diff(old: [CharacterBlock], new: [CharacterBlock]) -> TextDiffResult {
     let newIDs = Set(new.map(\.id))
     let oldLookup = Dictionary(uniqueKeysWithValues: old.map { ($0.id, $0) })
 

@@ -12,6 +12,8 @@
 		C1000003 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2000003 /* ViewController.swift */; };
 		C1000004 /* AnimatedLabel in Frameworks */ = {isa = PBXBuildFile; productRef = C4000001 /* AnimatedLabel */; };
 		C1000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C2000004 /* Assets.xcassets */; };
+		C1000006 /* OptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2000005 /* OptionRow.swift */; };
+		C1000007 /* DividerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2000006 /* DividerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +21,8 @@
 		C2000002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		C2000003 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		C2000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C2000005 /* OptionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionRow.swift; sourceTree = "<group>"; };
+		C2000006 /* DividerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DividerView.swift; sourceTree = "<group>"; };
 		C2000010 /* AnimatedLabelExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AnimatedLabelExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -48,6 +52,8 @@
 				C2000001 /* AppDelegate.swift */,
 				C2000002 /* SceneDelegate.swift */,
 				C2000003 /* ViewController.swift */,
+				C2000005 /* OptionRow.swift */,
+				C2000006 /* DividerView.swift */,
 				C2000004 /* Assets.xcassets */,
 			);
 			path = AnimatedLabelExample;
@@ -134,6 +140,8 @@
 				C1000001 /* AppDelegate.swift in Sources */,
 				C1000002 /* SceneDelegate.swift in Sources */,
 				C1000003 /* ViewController.swift in Sources */,
+				C1000006 /* OptionRow.swift in Sources */,
+				C1000007 /* DividerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

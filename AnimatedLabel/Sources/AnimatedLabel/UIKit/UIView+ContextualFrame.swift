@@ -1,7 +1,6 @@
 import UIKit
 
 extension UIView {
-
   var contextualFrame: CGRect {
     get {
       CGRect(
@@ -22,7 +21,6 @@ extension UIView {
 }
 
 extension CGRect {
-
   var mid: CGPoint {
     CGPoint(x: midX, y: midY)
   }
