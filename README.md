@@ -2,7 +2,7 @@
 
 A UIKit component that animates text changes character-by-character using spring physics. Each character is individually tracked and animated, creating fluid morphing and replacement effects.
 
-https://github.com/user-attachments/assets/placeholder
+https://github.com/user-attachments/assets/19af2b61-99ec-4393-89ae-2d29cb845f66
 
 ## Installation
 
