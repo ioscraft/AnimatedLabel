@@ -13,7 +13,7 @@ let package = Package(
     targets: [
         .target(
             name: "AnimatedLabel",
-            path: "Sources/AnimatedLabel"
+            path: "AnimatedLabel/Sources/AnimatedLabel"
         )
     ]
 )
